@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-Dashboard BOVA11 — Opções + GEX (v2 · Nível Tesouraria)
+Dashboard BOVA11 — Opções + GEX (v3 · validado com dados reais)
 Gera output/index.html para GitHub Pages.
 
-Nota de escala: o xlsx do opcoes.net.br usa strikes em escala 100x
-(ex: 17.700 = R$ 177,00). O script detecta isso automaticamente.
+Validações feitas com xlsx do opcoes.net.br (Mai/2026):
+  - Strikes em escala 100x (17300 = R$173,00) — detectado automaticamente
+  - Vol. Impl. (%) vem como inteiro ×10 (169 = 16,9%) — dividido por 10
+  - Gamma vem como inteiro ×10000 (169 = 0,0169) — dividido por 10000 ✅
+  - OI = Tit. + Lanç. — ambas são posições em contratos, lados opostos ✅
+  - GEX Flip = strike onde GEX cumulativo cruza de negativo→positivo
+    (robusto: usa abs().idxmin() como fallback se não cruzar)
+  - Fórmula GEX = Gamma_d × OI × Spot² (canônica) ✅
 """
 
 import sys, os, glob, json
@@ -48,15 +54,9 @@ def get_spot_and_scale(df):
     """
     Busca spot real do yfinance (ex: R$ 177,00).
     Detecta fator de escala comparando com mediana dos strikes do xlsx.
-    Retorna:
-      spot_real  : preço real em R$ (ex: 177.0)
-      spot_calc  : spot na mesma escala dos strikes (ex: 17700.0)
-      scale      : fator de escala (ex: 100)
-      data_ref   : data do fechamento
     """
     strike_median = float(df["Strike"].median())
 
-    # ── Tenta yfinance ───────────────────────────────────────────────────────
     spot_real = None
     data_ref  = "N/D"
     try:
@@ -69,17 +69,14 @@ def get_spot_and_scale(df):
     except Exception as e:
         print(f"⚠️  yfinance indisponível ({e})")
 
-    # ── Detecta escala ───────────────────────────────────────────────────────
     if spot_real is not None and spot_real > 0:
         raw_ratio = strike_median / spot_real
-        # Arredonda para potência de 10 mais próxima: 1, 10, 100, 1000
         if   raw_ratio < 3:    scale = 1
         elif raw_ratio < 30:   scale = 10
         elif raw_ratio < 300:  scale = 100
         else:                  scale = 1000
         print(f"📐 Strike mediana={strike_median:.0f} | Spot={spot_real} | Escala detectada: {scale}x")
     else:
-        # Fallback sem yfinance
         spot_real = round(strike_median, 2)
         scale = 1
         print(f"⚠️  Usando mediana dos strikes como spot: {spot_real}")
@@ -89,20 +86,23 @@ def get_spot_and_scale(df):
 
 def calc_gex(df, spot_calc):
     """
-    GEX usando spot na mesma escala dos strikes.
+    GEX canônico: Gamma_d × OI × Spot²
 
-    Correções aplicadas:
-      1. OI = Tit. apenas (lançadores são o lado oposto, somar dobrava o OI)
-      2. Fórmula canônica: GEX = Gamma_d × OI × Spot²
-         (Spot² porque Gamma mede variação do Delta por ponto do ativo)
-      3. Flip = strike onde GEX acumulado é mais próximo de zero (abs().idxmin),
-         robusto mesmo quando o cumsum nunca cruza de negativo→positivo
+    OI = Tit. + Lanç.
+      Tit.  = contratos em aberto do lado comprador
+      Lanç. = contratos em aberto do lado vendedor (inclui posições descobertas)
+      São lados opostos e de magnitudes diferentes — a soma representa
+      o total de exposição a gamma no mercado.
+
+    Gamma vem como inteiro ×10000 no xlsx (ex: 169 = 0,0169).
+    GAMMA_SCALE = 10000 normaliza para o valor real.
+
+    GEX Flip: strike onde o GEX cumulativo cruza de negativo→positivo.
+    Fallback: strike onde |GEX_cum| é mínimo (abs().idxmin()).
     """
     df = df.copy()
-    # CORREÇÃO 1: OI = posições titulares (lado comprado) — não somar Lanç.
-    df["OI"]      = df["Tit."]
+    df["OI"]      = df["Tit."] + df["Lanç."]
     df["Gamma_d"] = df["Gamma"] / GAMMA_SCALE
-    # CORREÇÃO 2: multiplicar por spot_calc² (fórmula canônica do GEX)
     df["GEX"]     = df.apply(
         lambda r: (1 if r["Tipo"] == "CALL" else -1)
                   * r["Gamma_d"] * r["OI"] * (spot_calc ** 2),
@@ -112,18 +112,32 @@ def calc_gex(df, spot_calc):
                .reset_index().sort_values("Strike")
                .rename(columns={"GEX": "GEX_net"}))
     gex_s["GEX_cum"] = gex_s["GEX_net"].cumsum()
-    # CORREÇÃO 3: flip = strike onde |GEX_cum| é mínimo (mais próximo de zero)
-    flip_idx    = gex_s["GEX_cum"].abs().idxmin()
-    flip_strike = float(gex_s.loc[flip_idx, "Strike"])
+
+    # Flip: cruzamento negativo → positivo
+    flip_strike = None
+    for i in range(1, len(gex_s)):
+        if gex_s["GEX_cum"].iloc[i-1] < 0 and gex_s["GEX_cum"].iloc[i] >= 0:
+            flip_strike = float(gex_s["Strike"].iloc[i])
+            break
+
+    # Fallback: ponto mais próximo de zero
+    if flip_strike is None:
+        flip_idx    = gex_s["GEX_cum"].abs().idxmin()
+        flip_strike = float(gex_s.loc[flip_idx, "Strike"])
+        print("⚠️  GEX_cum não cruza zero — usando ponto mais próximo como flip")
+
     return gex_s, flip_strike
 
 def calc_max_pain(df):
+    """
+    Max Pain = strike que minimiza o valor total pago pelos vendedores.
+    OI = Tit. + Lanç. (consistente com calc_gex).
+    """
     strikes = sorted(df["Strike"].unique())
     calls = df[df["Tipo"] == "CALL"].copy()
     puts  = df[df["Tipo"] == "PUT"].copy()
-    # OI = posições titulares apenas (consistente com calc_gex)
-    calls["OI"] = calls["Tit."]
-    puts["OI"]  = puts["Tit."]
+    calls["OI"] = calls["Tit."] + calls["Lanç."]
+    puts["OI"]  = puts["Tit."]  + puts["Lanç."]
     pain_vals = {}
     for s in strikes:
         pain_vals[s] = (
@@ -138,8 +152,7 @@ def calc_kpis(df):
     def ss(s): return float(s.replace([np.inf, -np.inf], np.nan).fillna(0).sum())
     vc  = ss(calls["Vol. Financeiro"]); vp = ss(puts["Vol. Financeiro"])
     nc  = ss(calls["Núm. de Neg."]);   np_ = ss(puts["Núm. de Neg."])
-    # CORREÇÃO: Vol. Impl. (%) vem em escala inteira no xlsx do opcoes.net.br
-    # ex: 169 = 16,9% → dividir por 10 para obter o valor real
+    # Vol. Impl. (%) vem como inteiro ×10 no xlsx (169 = 16,9%)
     iv_c = float(calls["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0) / 10
     iv_p = float(puts["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0) / 10
     return {
@@ -152,48 +165,43 @@ def calc_kpis(df):
     }
 
 def fmt_brl(v):
-    """Formata como R$ com vírgula decimal (padrão BR)."""
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def fmt_strike_display(v, scale):
-    """Converte strike da escala do xlsx para R$ real."""
     return fmt_brl(v / scale)
 
 def gerar_html(spot_real, spot_calc, scale, data_ref, kpis, max_pain_raw, flip_raw, gex_s):
     skew_color = "#ef4444" if kpis["skew"] > 0 else "#22c55e"
     pc_color   = "#ef4444" if kpis["pc_ratio"] > 1 else "#22c55e"
 
-    # Converte tudo para R$ real na exibição
-    spot_fmt     = fmt_brl(spot_real)
-    pain_fmt     = fmt_strike_display(max_pain_raw, scale)
-    flip_fmt     = fmt_strike_display(flip_raw, scale) if flip_raw else "N/D"
+    spot_fmt  = fmt_brl(spot_real)
+    pain_fmt  = fmt_strike_display(max_pain_raw, scale)
+    flip_fmt  = fmt_strike_display(flip_raw, scale) if flip_raw else "N/D"
 
     pain_diff_pct = round((spot_calc - max_pain_raw) / max_pain_raw * 100, 2)
-    pain_dir   = "Acima ↑" if spot_calc >= max_pain_raw else "Abaixo ↓"
-    pain_col   = "#22c55e" if spot_calc >= max_pain_raw else "#ef4444"
+    pain_dir  = "Acima ↑" if spot_calc >= max_pain_raw else "Abaixo ↓"
+    pain_col  = "#22c55e" if spot_calc >= max_pain_raw else "#ef4444"
 
     flip_level_html = ""
     if flip_raw:
         flip_diff_pct = round((spot_calc - flip_raw) / flip_raw * 100, 2)
-        flip_dir  = "Acima ↑" if spot_calc >= flip_raw else "Abaixo ↓"
-        flip_col  = "#22c55e" if spot_calc >= flip_raw else "#ef4444"
+        flip_dir = "Acima ↑" if spot_calc >= flip_raw else "Abaixo ↓"
+        flip_col = "#22c55e" if spot_calc >= flip_raw else "#ef4444"
         flip_level_html = f"""
     <div class="sep"></div>
     <div class="li"><span class="lbl">GEX Flip</span><span class="val" style="color:var(--accent)">{flip_fmt}</span></div>
     <div class="sep"></div>
     <div class="li"><span class="lbl">Spot vs GEX Flip</span><span class="val" style="color:{flip_col}">{flip_dir} ({abs(flip_diff_pct):.2f}%)</span></div>"""
 
-    # ── Gráfico 1: Top 20 por |GEX| ────────────────────────────────────────
-    top20  = gex_s.loc[gex_s["GEX_net"].abs().nlargest(20).index].sort_values("GEX_net")
+    top20    = gex_s.loc[gex_s["GEX_net"].abs().nlargest(20).index].sort_values("GEX_net")
     t_labels = [fmt_strike_display(v, scale) for v in top20["Strike"].tolist()]
     t_values = [round(v,2) for v in top20["GEX_net"].tolist()]
     t_colors = ["'#22c55e'" if v>=0 else "'#ef4444'" for v in t_values]
 
-    # ── Gráfico 2: zona central ±8% do spot_calc ───────────────────────────
     near = gex_s[(gex_s["Strike"] >= spot_calc*0.92) & (gex_s["Strike"] <= spot_calc*1.08)]
     if near.empty:
         near = gex_s[(gex_s["Strike"] >= spot_calc*0.85) & (gex_s["Strike"] <= spot_calc*1.15)]
-    near = near.loc[near["GEX_net"].abs().nlargest(25).index].sort_values("GEX_net")
+    near     = near.loc[near["GEX_net"].abs().nlargest(25).index].sort_values("GEX_net")
     n_labels = [fmt_strike_display(v, scale) for v in near["Strike"].tolist()]
     n_values = [round(v,2) for v in near["GEX_net"].tolist()]
     n_colors = ["'#22c55e'" if v>=0 else "'#ef4444'" for v in n_values]
@@ -317,14 +325,14 @@ def main():
     print(f"📂 Lendo: {path}")
     df = load_data(path)
     spot_real, spot_calc, scale, data_ref = get_spot_and_scale(df)
-    kpis      = calc_kpis(df)
-    max_pain  = calc_max_pain(df)
+    kpis     = calc_kpis(df)
+    max_pain = calc_max_pain(df)
     gex_s, flip_strike = calc_gex(df, spot_calc)
 
     print(f"📊 {len(df)} opções | CALLs:{kpis['n_calls']} PUTs:{kpis['n_puts']}")
     print(f"📈 IV:{kpis['iv_call']}%/{kpis['iv_put']}% Skew:{kpis['skew']}% P/C:{kpis['pc_ratio']}")
     print(f"🎯 MaxPain: {max_pain:,.0f} (R$ {max_pain/scale:,.2f})")
-    print(f"🔄 GEXFlip: {flip_strike or 'N/D'}")
+    print(f"🔄 GEXFlip: {flip_strike:,.0f} (R$ {flip_strike/scale:,.2f})")
 
     os.makedirs("output", exist_ok=True)
     html = gerar_html(spot_real, spot_calc, scale, data_ref, kpis, max_pain, flip_strike, gex_s)
