@@ -1,0 +1,34 @@
+name: Atualiza Dashboard BOVA11
+
+on:
+  push:
+    paths:
+      - 'data/*.xlsx'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instala dependencias
+        run: pip install -r requirements.txt
+
+      - name: Gera dashboard
+        run: python process_opcoes_v2.py
+
+      - name: Publica no GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./output
