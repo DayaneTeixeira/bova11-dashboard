@@ -42,11 +42,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pad
 <div class="header">
   <div>
     <h1>BOVA11 <span>Dashboard</span></h1>
-    <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; 22/05/2026 &nbsp;|&nbsp; 24/05/2026 19:27</p>
+    <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; 22/05/2026 &nbsp;|&nbsp; 24/05/2026 19:49</p>
   </div>
   <div class="spot-badge">
-    <div class="lbl">Spot Ref.</div>
-    <div class="val">18.100</div>
+    <div class="lbl">BOVA11 Fechamento</div>
+    <div class="val">R$ 173,30</div>
   </div>
 </div>
 
@@ -62,16 +62,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pad
 <div class="levels">
   <h3>Níveis-Chave</h3>
   <div class="levels-row">
-    <div class="li"><span class="lbl">Spot Ref.</span><span class="val" style="color:var(--blue)">18.100</span></div>
+    <div class="li"><span class="lbl">Fechamento</span><span class="val" style="color:var(--blue)">R$ 173,30</span></div>
     <div class="sep"></div>
-    <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">17.600</span></div>
+    <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">R$ 176,00</span></div>
     <div class="sep"></div>
-    <div class="li"><span class="lbl">Spot vs Max Pain</span><span class="val" style="color:#22c55e">Acima ↑ (2.84%)</span></div>
+    <div class="li"><span class="lbl">Spot vs Max Pain</span><span class="val" style="color:#ef4444">Abaixo ↓ (1.53%)</span></div>
     
     <div class="sep"></div>
-    <div class="li"><span class="lbl">GEX Flip</span><span class="val" style="color:var(--accent)">18.000</span></div>
+    <div class="li"><span class="lbl">GEX Flip</span><span class="val" style="color:var(--accent)">R$ 180,00</span></div>
     <div class="sep"></div>
-    <div class="li"><span class="lbl">Spot vs GEX Flip</span><span class="val" style="color:#22c55e">Acima ↑ (0.56%)</span></div>
+    <div class="li"><span class="lbl">Spot vs GEX Flip</span><span class="val" style="color:#ef4444">Abaixo ↓ (3.72%)</span></div>
   </div>
 </div>
 
@@ -81,7 +81,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pad
     <div class="chart-wrap" style="height:440px"><canvas id="cTop"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>GEX<span>Zona central (±8% da mediana)</span></h3>
+    <h3>GEX<span>Zona ±8% do Spot</span></h3>
     <div class="chart-wrap" style="height:550px"><canvas id="cNear"></canvas></div>
   </div>
 </div>
@@ -91,26 +91,20 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pad
 <script>
 const opts = {
   indexAxis:'y', responsive:true, maintainAspectRatio:false,
-  plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c=>' '+c.raw.toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+  plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c=>' GEX: '+c.raw.toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
   scales:{
     x:{ ticks:{color:'#6b7280',font:{size:10}}, grid:{color:'#1f2937'}, border:{color:'#374151'} },
-    y:{ ticks:{color:'#9ca3af',font:{size:11,family:"'Space Mono',monospace"}}, grid:{display:false}, border:{color:'#374151'} }
+    y:{ ticks:{color:'#9ca3af',font:{size:10,family:"'Space Mono',monospace"}}, grid:{display:false}, border:{color:'#374151'} }
   }
 };
 new Chart(document.getElementById('cTop'),{
   type:'bar',
-  data:{
-    labels:["17.000", "16.900", "17.100", "16.800", "17.200", "16.500", "16.700", "16.600", "18.500", "16.400", "16.100", "16.300", "18.200", "18.100", "17.900", "17.500", "18.000", "17.800", "17.700", "17.600"],
-    datasets:[{data:[-118167.66, -81247.28, -66007.08, -58817.76, -44124.18, -39110.48, -37517.68, -31399.88, -21180.62, -16199.5, -15980.49, -13028.38, 17490.03, 28576.28, 75949.41, 98945.46, 103008.91, 108523.98, 115271.66, 116822.83],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]
-  },
+  data:{labels:["R$ 170,00", "R$ 169,00", "R$ 171,00", "R$ 168,00", "R$ 172,00", "R$ 165,00", "R$ 167,00", "R$ 166,00", "R$ 185,00", "R$ 164,00", "R$ 161,00", "R$ 163,00", "R$ 182,00", "R$ 181,00", "R$ 179,00", "R$ 175,00", "R$ 180,00", "R$ 178,00", "R$ 177,00", "R$ 176,00"],datasets:[{data:[-113140.64, -77790.9, -63199.04, -56315.57, -42247.07, -37446.66, -35921.62, -30064.08, -20279.57, -15510.35, -15300.66, -12474.13, 16745.98, 27360.6, 72718.41, 94736.18, 98626.76, 103907.21, 110367.84, 111853.02],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]},
   options:JSON.parse(JSON.stringify(opts))
 });
 new Chart(document.getElementById('cNear'),{
   type:'bar',
-  data:{
-    labels:["17.000", "16.900", "17.100", "16.800", "17.200", "16.700", "18.500", "18.700", "18.900", "17.400", "18.600", "19.000", "19.100", "18.300", "18.800", "18.400", "17.300", "18.200", "18.100", "17.900", "17.500", "18.000", "17.800", "17.700", "17.600"],
-    datasets:[{data:[-118167.66, -81247.28, -66007.08, -58817.76, -44124.18, -37517.68, -21180.62, -7842.73, -6523.24, -5837.25, -3410.04, -1122.2, 979.21, 1321.3, 2019.96, 7321.45, 12152.34, 17490.03, 28576.28, 75949.41, 98945.46, 103008.91, 108523.98, 115271.66, 116822.83],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]
-  },
+  data:{labels:["R$ 170,00", "R$ 169,00", "R$ 171,00", "R$ 168,00", "R$ 172,00", "R$ 165,00", "R$ 167,00", "R$ 166,00", "R$ 185,00", "R$ 164,00", "R$ 161,00", "R$ 163,00", "R$ 162,00", "R$ 187,00", "R$ 174,00", "R$ 184,00", "R$ 173,00", "R$ 182,00", "R$ 181,00", "R$ 179,00", "R$ 175,00", "R$ 180,00", "R$ 178,00", "R$ 177,00", "R$ 176,00"],datasets:[{data:[-113140.64, -77790.9, -63199.04, -56315.57, -42247.07, -37446.66, -35921.62, -30064.08, -20279.57, -15510.35, -15300.66, -12474.13, -10467.32, -7509.09, -5588.93, 7009.98, 11635.36, 16745.98, 27360.6, 72718.41, 94736.18, 98626.76, 103907.21, 110367.84, 111853.02],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]},
   options:JSON.parse(JSON.stringify(opts))
 });
 </script>
