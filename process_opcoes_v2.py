@@ -88,29 +88,42 @@ def get_spot_and_scale(df):
     return spot_real, spot_calc, scale, data_ref
 
 def calc_gex(df, spot_calc):
-    """GEX usando spot na mesma escala dos strikes."""
+    """
+    GEX usando spot na mesma escala dos strikes.
+
+    Correções aplicadas:
+      1. OI = Tit. apenas (lançadores são o lado oposto, somar dobrava o OI)
+      2. Fórmula canônica: GEX = Gamma_d × OI × Spot²
+         (Spot² porque Gamma mede variação do Delta por ponto do ativo)
+      3. Flip = strike onde GEX acumulado é mais próximo de zero (abs().idxmin),
+         robusto mesmo quando o cumsum nunca cruza de negativo→positivo
+    """
     df = df.copy()
-    df["OI"]      = df["Tit."] + df["Lanç."]
+    # CORREÇÃO 1: OI = posições titulares (lado comprado) — não somar Lanç.
+    df["OI"]      = df["Tit."]
     df["Gamma_d"] = df["Gamma"] / GAMMA_SCALE
+    # CORREÇÃO 2: multiplicar por spot_calc² (fórmula canônica do GEX)
     df["GEX"]     = df.apply(
-        lambda r: (1 if r["Tipo"] == "CALL" else -1) * r["Gamma_d"] * r["OI"] * spot_calc, axis=1)
+        lambda r: (1 if r["Tipo"] == "CALL" else -1)
+                  * r["Gamma_d"] * r["OI"] * (spot_calc ** 2),
+        axis=1,
+    )
     gex_s = (df.groupby("Strike")["GEX"].sum()
                .reset_index().sort_values("Strike")
                .rename(columns={"GEX": "GEX_net"}))
     gex_s["GEX_cum"] = gex_s["GEX_net"].cumsum()
-    flip_strike = None
-    for i in range(1, len(gex_s)):
-        if gex_s["GEX_cum"].iloc[i-1] < 0 and gex_s["GEX_cum"].iloc[i] >= 0:
-            flip_strike = float(gex_s["Strike"].iloc[i])
-            break
+    # CORREÇÃO 3: flip = strike onde |GEX_cum| é mínimo (mais próximo de zero)
+    flip_idx    = gex_s["GEX_cum"].abs().idxmin()
+    flip_strike = float(gex_s.loc[flip_idx, "Strike"])
     return gex_s, flip_strike
 
 def calc_max_pain(df):
     strikes = sorted(df["Strike"].unique())
     calls = df[df["Tipo"] == "CALL"].copy()
     puts  = df[df["Tipo"] == "PUT"].copy()
-    calls["OI"] = calls["Tit."] + calls["Lanç."]
-    puts["OI"]  = puts["Tit."]  + puts["Lanç."]
+    # OI = posições titulares apenas (consistente com calc_gex)
+    calls["OI"] = calls["Tit."]
+    puts["OI"]  = puts["Tit."]
     pain_vals = {}
     for s in strikes:
         pain_vals[s] = (
@@ -273,7 +286,7 @@ body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pa
   </div>
 </div>
 
-<div class="footer">BOVA11 Dashboard · dados opcoes.net.br · GEX = Γ × OI × Spot · não é recomendação de investimento</div>
+<div class="footer">BOVA11 Dashboard · dados opcoes.net.br · GEX = Γ × OI × Spot² · não é recomendação de investimento</div>
 
 <script>
 const opts = {{
