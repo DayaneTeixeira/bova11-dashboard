@@ -6,7 +6,7 @@ Max Pain, Skew, Put/Call ratio — e puxa fechamento via yfinance.
 Gera output/index.html para GitHub Pages.
 """
 
-import sys, os, glob, json, math
+import sys, os, glob, json
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -61,7 +61,6 @@ def load_data(path):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    # Garante coluna Tipo
     if "Tipo" not in df.columns:
         for col in df.columns:
             if "tipo" in col.lower() or "call" in col.lower():
@@ -143,16 +142,48 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
     skew_color = "#ef4444" if kpis["skew"] > 0 else "#22c55e"
     pc_color   = "#ef4444" if kpis["pc_ratio"] > 1 else "#22c55e"
 
-    # Dados para o gráfico GEX
-    strikes_list = gex_s["Strike"].tolist()
-    gex_list     = gex_s["GEX_net"].round(2).tolist()
+    # --- Gráfico 1: strikes dentro de ±12% do spot, máximo 40 barras ---
+    margin = 0.12
+    gex_near = gex_s[
+        (gex_s["Strike"] >= spot * (1 - margin)) &
+        (gex_s["Strike"] <= spot * (1 + margin))
+    ].copy()
+    # se ainda tiver muitos, pega os 40 de maior |GEX|
+    if len(gex_near) > 40:
+        idx = gex_near["GEX_net"].abs().nlargest(40).index
+        gex_near = gex_near.loc[idx].sort_values("Strike")
+
+    strikes_list = [round(v, 2) for v in gex_near["Strike"].tolist()]
+    gex_list     = [round(v, 2) for v in gex_near["GEX_net"].tolist()]
     colors_list  = ["'#22c55e'" if v >= 0 else "'#ef4444'" for v in gex_list]
 
-    # Top 15 strikes por |GEX|
-    top15 = gex_s.reindex(gex_s["GEX_net"].abs().nlargest(15).index).sort_values("Strike")
-    t_strikes = top15["Strike"].tolist()
-    t_gex     = top15["GEX_net"].round(2).tolist()
+    # --- Gráfico 2: top 15 por |GEX| (todos os strikes) ---
+    top15 = gex_s.loc[gex_s["GEX_net"].abs().nlargest(15).index].sort_values("Strike")
+    t_strikes = [round(v, 2) for v in top15["Strike"].tolist()]
+    t_gex     = [round(v, 2) for v in top15["GEX_net"].tolist()]
     t_colors  = ["'#22c55e'" if v >= 0 else "'#ef4444'" for v in t_gex]
+
+    # Posição vs níveis-chave
+    pos_pain = "Acima ↑" if spot >= max_pain else "Abaixo ↓"
+    pos_pain_pts = abs(spot - max_pain)
+    pos_pain_color = "#22c55e" if spot >= max_pain else "#ef4444"
+
+    flip_block = ""
+    if flip_strike:
+        pos_flip = "Acima ↑" if spot >= flip_strike else "Abaixo ↓"
+        pos_flip_pts = abs(spot - flip_strike)
+        pos_flip_color = "#22c55e" if spot >= flip_strike else "#ef4444"
+        flip_block = f"""
+    <div class="sep"></div>
+    <div class="level-item">
+      <span class="lbl">GEX Flip</span>
+      <span class="val" style="color:var(--accent)">{flip_str}</span>
+    </div>
+    <div class="sep"></div>
+    <div class="level-item">
+      <span class="lbl">Spot vs GEX Flip</span>
+      <span class="val" style="color:{pos_flip_color}">{pos_flip} ({pos_flip_pts:.1f} pts)</span>
+    </div>"""
 
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -167,50 +198,42 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {{
-    --bg:        #0a0e1a;
-    --surface:   #111827;
-    --border:    #1f2937;
-    --text:      #e5e7eb;
-    --muted:     #6b7280;
-    --green:     #22c55e;
-    --red:       #ef4444;
-    --blue:      #3b82f6;
-    --yellow:    #f59e0b;
-    --accent:    #818cf8;
+    --bg:      #0a0e1a;
+    --surface: #111827;
+    --border:  #1f2937;
+    --text:    #e5e7eb;
+    --muted:   #6b7280;
+    --green:   #22c55e;
+    --red:     #ef4444;
+    --blue:    #3b82f6;
+    --yellow:  #f59e0b;
+    --accent:  #818cf8;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
     padding: 24px 20px 60px;
   }}
-  /* ── Header ── */
   .header {{
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
     padding-bottom: 20px;
     border-bottom: 1px solid var(--border);
   }}
   .header-left h1 {{
     font-family: 'Space Mono', monospace;
-    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-size: clamp(1.3rem, 3.5vw, 1.9rem);
     font-weight: 700;
-    letter-spacing: -0.02em;
     color: #fff;
   }}
   .header-left h1 span {{ color: var(--accent); }}
-  .header-left p {{
-    font-size: .8rem;
-    color: var(--muted);
-    margin-top: 4px;
-    font-family: 'Space Mono', monospace;
-  }}
+  .header-left p {{ font-size: .78rem; color: var(--muted); margin-top: 5px; font-family: 'Space Mono', monospace; }}
   .spot-badge {{
     background: var(--surface);
     border: 1px solid var(--border);
@@ -218,115 +241,58 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
     padding: 12px 20px;
     text-align: right;
   }}
-  .spot-badge .label {{ font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }}
-  .spot-badge .value {{
-    font-family: 'Space Mono', monospace;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--green);
-  }}
-  /* ── KPI grid ── */
+  .spot-badge .label {{ font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }}
+  .spot-badge .value {{ font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--green); }}
+
   .kpi-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 14px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
   }}
   .kpi-card {{
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
-    transition: border-color .2s;
+    padding: 14px 16px;
   }}
-  .kpi-card:hover {{ border-color: var(--accent); }}
-  .kpi-card .kpi-label {{
-    font-size: .68rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }}
-  .kpi-card .kpi-value {{
-    font-family: 'Space Mono', monospace;
-    font-size: 1.3rem;
-    font-weight: 700;
-  }}
-  .kpi-card .kpi-sub {{
-    font-size: .72rem;
-    color: var(--muted);
-    margin-top: 4px;
-  }}
-  /* ── Charts ── */
-  .charts-grid {{
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 28px;
-  }}
-  @media (max-width: 768px) {{ .charts-grid {{ grid-template-columns: 1fr; }} }}
-  .chart-card {{
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px;
-  }}
-  .chart-card h3 {{
-    font-size: .8rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--muted);
-    margin-bottom: 16px;
-  }}
-  .chart-card h3 span {{
-    font-family: 'Space Mono', monospace;
-    font-size: .9rem;
-    color: var(--text);
-    text-transform: none;
-    letter-spacing: 0;
-    margin-left: 8px;
-  }}
-  /* ── Footer ── */
-  .footer {{
-    text-align: center;
-    font-size: .72rem;
-    color: var(--muted);
-    margin-top: 40px;
-    font-family: 'Space Mono', monospace;
-  }}
-  /* ── Levels bar ── */
+  .kpi-label {{ font-size: .66rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 7px; }}
+  .kpi-value {{ font-family: 'Space Mono', monospace; font-size: 1.25rem; font-weight: 700; }}
+  .kpi-sub {{ font-size: .7rem; color: var(--muted); margin-top: 4px; }}
+
   .levels-bar {{
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 28px;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
   }}
-  .levels-bar h3 {{
-    font-size: .8rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--muted);
-    margin-bottom: 16px;
+  .levels-bar h3 {{ font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; }}
+  .levels-row {{ display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }}
+  .level-item {{ display: flex; flex-direction: column; gap: 4px; }}
+  .lbl {{ font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }}
+  .val {{ font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; }}
+  .sep {{ width: 1px; height: 38px; background: var(--border); }}
+
+  .charts-grid {{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 24px;
   }}
-  .levels-row {{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: center;
+  @media (max-width: 700px) {{ .charts-grid {{ grid-template-columns: 1fr; }} }}
+  .chart-card {{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
   }}
-  .level-item {{
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }}
-  .level-item .lbl {{ font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }}
-  .level-item .val {{
-    font-family: 'Space Mono', monospace;
-    font-size: 1.05rem;
-    font-weight: 700;
-  }}
-  .sep {{ width: 1px; height: 40px; background: var(--border); }}
+  .chart-card h3 {{ font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 12px; }}
+  .chart-card h3 span {{ font-family: 'Space Mono', monospace; font-size: .85rem; color: var(--text); text-transform: none; letter-spacing: 0; margin-left: 6px; }}
+  /* altura fixa pro canvas */
+  .chart-wrap {{ position: relative; height: 300px; }}
+
+  .footer {{ text-align: center; font-size: .7rem; color: var(--muted); margin-top: 32px; font-family: 'Space Mono', monospace; }}
 </style>
 </head>
 <body>
@@ -334,7 +300,7 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
 <div class="header">
   <div class="header-left">
     <h1>BOVA11 <span>Dashboard</span></h1>
-    <p>Opções · GEX · Max Pain · Skew &nbsp;|&nbsp; Ref: {data_ref} &nbsp;|&nbsp; Gerado: {now}</p>
+    <p>GEX · Max Pain · Skew &nbsp;|&nbsp; Ref: {data_ref} &nbsp;|&nbsp; Gerado: {now}</p>
   </div>
   <div class="spot-badge">
     <div class="label">BOVA11 Spot</div>
@@ -342,7 +308,6 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
   </div>
 </div>
 
-<!-- KPIs -->
 <div class="kpi-grid">
   <div class="kpi-card">
     <div class="kpi-label">IV Call (média)</div>
@@ -355,9 +320,9 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
     <div class="kpi-sub">{kpis['n_puts']} contratos</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Skew IV (Put − Call)</div>
+    <div class="kpi-label">Skew (Put − Call)</div>
     <div class="kpi-value" style="color:{skew_color}">{kpis['skew']:+.1f}%</div>
-    <div class="kpi-sub">{'Bearish' if kpis['skew'] > 0 else 'Bullish'} bias</div>
+    <div class="kpi-sub">{'Bearish bias' if kpis['skew'] > 0 else 'Bullish bias'}</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-label">Put/Call Ratio</div>
@@ -376,7 +341,6 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
   </div>
 </div>
 
-<!-- Levels -->
 <div class="levels-bar">
   <h3>Níveis-Chave</h3>
   <div class="levels-row">
@@ -391,29 +355,21 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
     </div>
     <div class="sep"></div>
     <div class="level-item">
-      <span class="lbl">GEX Flip</span>
-      <span class="val" style="color:var(--accent)">{flip_str}</span>
+      <span class="lbl">Spot vs Max Pain</span>
+      <span class="val" style="color:{pos_pain_color}">{pos_pain} ({pos_pain_pts:.1f} pts)</span>
     </div>
-    <div class="sep"></div>
-    <div class="level-item">
-      <span class="lbl">Posição vs Max Pain</span>
-      <span class="val" style="color:{'var(--green)' if spot >= max_pain else 'var(--red)'}">
-        {'Acima ↑' if spot >= max_pain else 'Abaixo ↓'} ({abs(spot - max_pain):.1f} pts)
-      </span>
-    </div>
-    {'<div class="sep"></div><div class="level-item"><span class="lbl">Posição vs GEX Flip</span><span class="val" style="color:' + ("'var(--green)'" if flip_strike and spot >= flip_strike else "'var(--red)'") + '">' + ('Acima ↑' if flip_strike and spot >= flip_strike else 'Abaixo ↓') + (' (' + f'{abs(spot - flip_strike):.1f} pts)' if flip_strike else '') + '</span></div>' if flip_strike else ''}
+    {flip_block}
   </div>
 </div>
 
-<!-- Charts -->
 <div class="charts-grid">
   <div class="chart-card">
-    <h3>GEX por Strike <span>— todos os strikes</span></h3>
-    <canvas id="gexAll" height="280"></canvas>
+    <h3>GEX por Strike <span>±12% do Spot</span></h3>
+    <div class="chart-wrap"><canvas id="gexNear"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>GEX por Strike <span>— top 15 por magnitude</span></h3>
-    <canvas id="gexTop" height="280"></canvas>
+    <h3>GEX por Strike <span>Top 15 magnitude</span></h3>
+    <div class="chart-wrap"><canvas id="gexTop"></canvas></div>
   </div>
 </div>
 
@@ -422,49 +378,44 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
 </div>
 
 <script>
-const SPOT = {spot};
-const MAX_PAIN = {max_pain};
-const FLIP = {flip_strike if flip_strike else 'null'};
-
-const optGex = {{
+const baseOpts = {{
   responsive: true,
   maintainAspectRatio: false,
   plugins: {{
     legend: {{ display: false }},
     tooltip: {{
       callbacks: {{
-        label: ctx => ' GEX: ' + ctx.raw.toLocaleString('pt-BR', {{maximumFractionDigits:0}})
+        label: ctx => ' GEX: ' + ctx.raw.toLocaleString('pt-BR', {{maximumFractionDigits: 0}})
       }}
     }}
   }},
   scales: {{
     x: {{
-      ticks: {{ color:'#6b7280', font:{{size:10}}, maxRotation:45 }},
-      grid:  {{ color:'#1f2937' }}
+      ticks: {{ color: '#6b7280', font: {{ size: 10 }}, maxRotation: 45, minRotation: 30 }},
+      grid:  {{ color: '#1f2937' }}
     }},
     y: {{
-      ticks: {{ color:'#6b7280', font:{{size:10}} }},
-      grid:  {{ color:'#1f2937' }}
+      ticks: {{ color: '#6b7280', font: {{ size: 10 }} }},
+      grid:  {{ color: '#1f2937' }},
+      beginAtZero: false
     }}
   }}
 }};
 
-// Chart 1 — todos os strikes
-new Chart(document.getElementById('gexAll'), {{
+new Chart(document.getElementById('gexNear'), {{
   type: 'bar',
   data: {{
     labels: {json.dumps(strikes_list)},
     datasets: [{{
       data: {json.dumps(gex_list)},
       backgroundColor: [{', '.join(colors_list)}],
-      borderRadius: 2,
+      borderRadius: 3,
       borderSkipped: false,
     }}]
   }},
-  options: optGex
+  options: JSON.parse(JSON.stringify(baseOpts))
 }});
 
-// Chart 2 — top 15
 new Chart(document.getElementById('gexTop'), {{
   type: 'bar',
   data: {{
@@ -476,13 +427,7 @@ new Chart(document.getElementById('gexTop'), {{
       borderSkipped: false,
     }}]
   }},
-  options: {{
-    ...optGex,
-    plugins: {{
-      ...optGex.plugins,
-      annotation: {{}}
-    }}
-  }}
+  options: JSON.parse(JSON.stringify(baseOpts))
 }});
 </script>
 </body>
