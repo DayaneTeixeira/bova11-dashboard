@@ -7,189 +7,111 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#0a0e1a; --surface:#111827; --border:#1f2937;
-  --text:#e5e7eb; --muted:#6b7280;
-  --green:#22c55e; --red:#ef4444; --blue:#3b82f6;
-  --yellow:#f59e0b; --accent:#818cf8;
-}
-*{ box-sizing:border-box; margin:0; padding:0; }
-body{ background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; padding:20px 18px 60px; }
-
-.header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:24px; padding-bottom:18px; border-bottom:1px solid var(--border); }
-.header h1{ font-family:'Space Mono',monospace; font-size:clamp(1.2rem,3.5vw,1.8rem); color:#fff; }
-.header h1 span{ color:var(--accent); }
-.header p{ font-size:.75rem; color:var(--muted); margin-top:4px; font-family:'Space Mono',monospace; }
-.spot-badge{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 18px; text-align:right; }
-.spot-badge .lbl{ font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
-.spot-badge .val{ font-family:'Space Mono',monospace; font-size:1.4rem; font-weight:700; color:var(--green); }
-
-.kpi-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-bottom:18px; }
-.kpi{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
-.kpi .k-lbl{ font-size:.63rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
-.kpi .k-val{ font-family:'Space Mono',monospace; font-size:1.2rem; font-weight:700; }
-.kpi .k-sub{ font-size:.68rem; color:var(--muted); margin-top:3px; }
-
-.levels{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
-.levels h3{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:12px; }
-.levels-row{ display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
-.li{ display:flex; flex-direction:column; gap:3px; }
-.li .lbl{ font-size:.63rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
-.li .val{ font-family:'Space Mono',monospace; font-size:.95rem; font-weight:700; }
-.sep{ width:1px; height:36px; background:var(--border); }
-
-.charts-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-@media(max-width:640px){ .charts-grid{ grid-template-columns:1fr; } }
-.chart-card{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
-.chart-card h3{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:10px; }
-.chart-card h3 span{ font-family:'Space Mono',monospace; font-size:.82rem; color:var(--text); text-transform:none; letter-spacing:0; margin-left:5px; }
-.chart-wrap{ position:relative; }
-
-.footer{ text-align:center; font-size:.67rem; color:var(--muted); margin-top:28px; font-family:'Space Mono',monospace; }
+:root{--bg:#0a0e1a;--surface:#111827;--border:#1f2937;--text:#e5e7eb;--muted:#6b7280;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--yellow:#f59e0b;--accent:#818cf8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;padding:20px 18px 60px;}
+.header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.header h1{font-family:'Space Mono',monospace;font-size:clamp(1.2rem,3.5vw,1.8rem);color:#fff;}
+.header h1 span{color:var(--accent);}
+.header p{font-size:.73rem;color:var(--muted);margin-top:4px;font-family:'Space Mono',monospace;}
+.spot-badge{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:right;}
+.spot-badge .lbl{font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
+.spot-badge .val{font-family:'Space Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--green);}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px;margin-bottom:16px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.k-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;}
+.k-val{font-family:'Space Mono',monospace;font-size:1.2rem;font-weight:700;}
+.k-sub{font-size:.67rem;color:var(--muted);margin-top:3px;}
+.levels{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;}
+.levels h3{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px;}
+.levels-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
+.li{display:flex;flex-direction:column;gap:3px;}
+.lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.val{font-family:'Space Mono',monospace;font-size:.93rem;font-weight:700;}
+.sep{width:1px;height:34px;background:var(--border);}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:620px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.chart-card h3{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px;}
+.chart-card h3 span{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--text);text-transform:none;letter-spacing:0;margin-left:5px;}
+.chart-wrap{position:relative;}
+.footer{text-align:center;font-size:.66rem;color:var(--muted);margin-top:26px;font-family:'Space Mono',monospace;}
 </style>
 </head>
 <body>
-
 <div class="header">
   <div>
     <h1>BOVA11 <span>Dashboard</span></h1>
-    <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; 22/05/2026 &nbsp;|&nbsp; 24/05/2026 19:20</p>
+    <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; 22/05/2026 &nbsp;|&nbsp; 24/05/2026 19:27</p>
   </div>
   <div class="spot-badge">
-    <div class="lbl">Spot</div>
-    <div class="val">R$ 173,30</div>
+    <div class="lbl">Spot Ref.</div>
+    <div class="val">18.100</div>
   </div>
 </div>
 
 <div class="kpi-grid">
-  <div class="kpi">
-    <div class="k-lbl">IV Call</div>
-    <div class="k-val" style="color:var(--green)">228.5%</div>
-    <div class="k-sub">43 contratos</div>
-  </div>
-  <div class="kpi">
-    <div class="k-lbl">IV Put</div>
-    <div class="k-val" style="color:var(--red)">194.3%</div>
-    <div class="k-sub">43 contratos</div>
-  </div>
-  <div class="kpi">
-    <div class="k-lbl">Skew Put−Call</div>
-    <div class="k-val" style="color:#22c55e">-34.3%</div>
-    <div class="k-sub">Bullish bias</div>
-  </div>
-  <div class="kpi">
-    <div class="k-lbl">Put/Call Ratio</div>
-    <div class="k-val" style="color:#ef4444">1.615</div>
-    <div class="k-sub">por vol. financeiro</div>
-  </div>
-  <div class="kpi">
-    <div class="k-lbl">Vol. Calls</div>
-    <div class="k-val" style="color:var(--green)">R$ 8.9M</div>
-    <div class="k-sub">8,164 negócios</div>
-  </div>
-  <div class="kpi">
-    <div class="k-lbl">Vol. Puts</div>
-    <div class="k-val" style="color:var(--red)">R$ 14.4M</div>
-    <div class="k-sub">6,626 negócios</div>
-  </div>
+  <div class="kpi"><div class="k-lbl">IV Call</div><div class="k-val" style="color:var(--green)">228.5%</div><div class="k-sub">43 contratos</div></div>
+  <div class="kpi"><div class="k-lbl">IV Put</div><div class="k-val" style="color:var(--red)">194.3%</div><div class="k-sub">43 contratos</div></div>
+  <div class="kpi"><div class="k-lbl">Skew Put−Call</div><div class="k-val" style="color:#22c55e">-34.3%</div><div class="k-sub">Bullish bias</div></div>
+  <div class="kpi"><div class="k-lbl">Put/Call Ratio</div><div class="k-val" style="color:#ef4444">1.615</div><div class="k-sub">vol. financeiro</div></div>
+  <div class="kpi"><div class="k-lbl">Vol. Calls</div><div class="k-val" style="color:var(--green)">R$ 8.9M</div><div class="k-sub">8,164 negócios</div></div>
+  <div class="kpi"><div class="k-lbl">Vol. Puts</div><div class="k-val" style="color:var(--red)">R$ 14.4M</div><div class="k-sub">6,626 negócios</div></div>
 </div>
 
 <div class="levels">
   <h3>Níveis-Chave</h3>
   <div class="levels-row">
-    <div class="li"><span class="lbl">Spot</span><span class="val" style="color:var(--blue)">R$ 173,30</span></div>
+    <div class="li"><span class="lbl">Spot Ref.</span><span class="val" style="color:var(--blue)">18.100</span></div>
     <div class="sep"></div>
-    <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">R$ 17.600</span></div>
+    <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">17.600</span></div>
     <div class="sep"></div>
-    <div class="li"><span class="lbl">Spot vs Max Pain</span><span class="val" style="color:#ef4444">Abaixo ↓ (17426.7 pts)</span></div>
+    <div class="li"><span class="lbl">Spot vs Max Pain</span><span class="val" style="color:#22c55e">Acima ↑ (2.84%)</span></div>
     
     <div class="sep"></div>
-    <div class="level-item">
-      <span class="lbl">GEX Flip</span>
-      <span class="val" style="color:var(--accent)">R$ 18.000</span>
-    </div>
+    <div class="li"><span class="lbl">GEX Flip</span><span class="val" style="color:var(--accent)">18.000</span></div>
     <div class="sep"></div>
-    <div class="level-item">
-      <span class="lbl">Spot vs GEX Flip</span>
-      <span class="val" style="color:#ef4444">Abaixo ↓ (17826.7 pts)</span>
-    </div>
+    <div class="li"><span class="lbl">Spot vs GEX Flip</span><span class="val" style="color:#22c55e">Acima ↑ (0.56%)</span></div>
   </div>
 </div>
 
 <div class="charts-grid">
   <div class="chart-card">
-    <h3>GEX<span>Top 20 strikes por magnitude</span></h3>
-    <div class="chart-wrap" style="height:440px">
-      <canvas id="cTop"></canvas>
-    </div>
+    <h3>GEX<span>Top 20 por magnitude</span></h3>
+    <div class="chart-wrap" style="height:440px"><canvas id="cTop"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>GEX<span>±8% do Spot (zona relevante)</span></h3>
-    <div class="chart-wrap" style="height:300px">
-      <canvas id="cNear"></canvas>
-    </div>
+    <h3>GEX<span>Zona central (±8% da mediana)</span></h3>
+    <div class="chart-wrap" style="height:550px"><canvas id="cNear"></canvas></div>
   </div>
 </div>
 
-<div class="footer">
-  BOVA11 Dashboard · dados opcoes.net.br · GEX = Γ × OI × Spot · não é recomendação de investimento
-</div>
+<div class="footer">BOVA11 Dashboard · dados opcoes.net.br · GEX = Γ × OI × Spot · não é recomendação de investimento</div>
 
 <script>
-const hBarOpts = {
-  indexAxis: 'y',
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      callbacks: {
-        label: ctx => ' ' + ctx.raw.toLocaleString('pt-BR', {maximumFractionDigits: 0})
-      }
-    }
-  },
-  scales: {
-    x: {
-      ticks: { color: '#6b7280', font: { size: 10 } },
-      grid: { color: '#1f2937' },
-      border: { color: '#374151' }
-    },
-    y: {
-      ticks: { color: '#9ca3af', font: { size: 11, family: "'Space Mono', monospace" } },
-      grid: { display: false },
-      border: { color: '#374151' }
-    }
+const opts = {
+  indexAxis:'y', responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c=>' '+c.raw.toLocaleString('pt-BR',{maximumFractionDigits:0}) } } },
+  scales:{
+    x:{ ticks:{color:'#6b7280',font:{size:10}}, grid:{color:'#1f2937'}, border:{color:'#374151'} },
+    y:{ ticks:{color:'#9ca3af',font:{size:11,family:"'Space Mono',monospace"}}, grid:{display:false}, border:{color:'#374151'} }
   }
 };
-
-new Chart(document.getElementById('cTop'), {
-  type: 'bar',
-  data: {
-    labels: ["17000", "16900", "17100", "16800", "17200", "16500", "16700", "16600", "18500", "16400", "16100", "16300", "18200", "18100", "17900", "17500", "18000", "17800", "17700", "17600"],
-    datasets: [{
-      data: [-1131.41, -777.91, -631.99, -563.16, -422.47, -374.47, -359.22, -300.64, -202.8, -155.1, -153.01, -124.74, 167.46, 273.61, 727.18, 947.36, 986.27, 1039.07, 1103.68, 1118.53],
-      backgroundColor: ['#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e'],
-      borderRadius: 4,
-      borderSkipped: false,
-      barThickness: 16,
-    }]
+new Chart(document.getElementById('cTop'),{
+  type:'bar',
+  data:{
+    labels:["17.000", "16.900", "17.100", "16.800", "17.200", "16.500", "16.700", "16.600", "18.500", "16.400", "16.100", "16.300", "18.200", "18.100", "17.900", "17.500", "18.000", "17.800", "17.700", "17.600"],
+    datasets:[{data:[-118167.66, -81247.28, -66007.08, -58817.76, -44124.18, -39110.48, -37517.68, -31399.88, -21180.62, -16199.5, -15980.49, -13028.38, 17490.03, 28576.28, 75949.41, 98945.46, 103008.91, 108523.98, 115271.66, 116822.83],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]
   },
-  options: JSON.parse(JSON.stringify(hBarOpts))
+  options:JSON.parse(JSON.stringify(opts))
 });
-
-new Chart(document.getElementById('cNear'), {
-  type: 'bar',
-  data: {
-    labels: [],
-    datasets: [{
-      data: [],
-      backgroundColor: [],
-      borderRadius: 4,
-      borderSkipped: false,
-      barThickness: 16,
-    }]
+new Chart(document.getElementById('cNear'),{
+  type:'bar',
+  data:{
+    labels:["17.000", "16.900", "17.100", "16.800", "17.200", "16.700", "18.500", "18.700", "18.900", "17.400", "18.600", "19.000", "19.100", "18.300", "18.800", "18.400", "17.300", "18.200", "18.100", "17.900", "17.500", "18.000", "17.800", "17.700", "17.600"],
+    datasets:[{data:[-118167.66, -81247.28, -66007.08, -58817.76, -44124.18, -37517.68, -21180.62, -7842.73, -6523.24, -5837.25, -3410.04, -1122.2, 979.21, 1321.3, 2019.96, 7321.45, 12152.34, 17490.03, 28576.28, 75949.41, 98945.46, 103008.91, 108523.98, 115271.66, 116822.83],backgroundColor:['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#ef4444','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e','#22c55e'],borderRadius:4,borderSkipped:false,barThickness:16}]
   },
-  options: JSON.parse(JSON.stringify(hBarOpts))
+  options:JSON.parse(JSON.stringify(opts))
 });
 </script>
 </body>
