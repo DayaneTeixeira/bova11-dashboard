@@ -2,6 +2,9 @@
 """
 Dashboard BOVA11 — Opções + GEX (v2 · Nível Tesouraria)
 Gera output/index.html para GitHub Pages.
+
+Nota de escala: o xlsx do opcoes.net.br usa strikes em escala 100x
+(ex: 17.700 = R$ 177,00). O script detecta isso automaticamente.
 """
 
 import sys, os, glob, json
@@ -41,51 +44,56 @@ def load_data(path):
                 break
     return df
 
-def get_spot_price(df):
+def get_spot_and_scale(df):
     """
-    Tenta yfinance. Se o preço retornado estiver em escala muito diferente
-    dos strikes do xlsx, usa a mediana dos strikes como referência de spot.
+    Busca spot real do yfinance (ex: R$ 177,00).
+    Detecta fator de escala comparando com mediana dos strikes do xlsx.
+    Retorna:
+      spot_real  : preço real em R$ (ex: 177.0)
+      spot_calc  : spot na mesma escala dos strikes (ex: 17700.0)
+      scale      : fator de escala (ex: 100)
+      data_ref   : data do fechamento
     """
     strike_median = float(df["Strike"].median())
 
-    yf_price = None
-    yf_date  = None
+    # ── Tenta yfinance ───────────────────────────────────────────────────────
+    spot_real = None
+    data_ref  = "N/D"
     try:
         import yfinance as yf
         hist = yf.Ticker("BOVA11.SA").history(period="5d")
         if not hist.empty:
-            yf_price = round(float(hist["Close"].iloc[-1]), 2)
-            yf_date  = hist.index[-1].strftime("%d/%m/%Y")
-            print(f"✅ yfinance: BOVA11 = R$ {yf_price} ({yf_date})")
+            spot_real = round(float(hist["Close"].iloc[-1]), 2)
+            data_ref  = hist.index[-1].strftime("%d/%m/%Y")
+            print(f"✅ yfinance: BOVA11 = R$ {spot_real} ({data_ref})")
     except Exception as e:
         print(f"⚠️  yfinance indisponível ({e})")
 
-    if yf_price is not None:
-        # Se o preço do yfinance for compatível com os strikes (razão < 10x), usa direto
-        ratio = strike_median / yf_price
-        if 0.1 <= ratio <= 10:
-            return yf_price, yf_date
-        else:
-            # Escalas incompatíveis: usa mediana dos strikes como spot
-            print(f"⚠️  Escala incompatível (yfinance={yf_price}, strike mediana={strike_median:.0f}). Usando mediana dos strikes.")
-            return round(strike_median, 2), yf_date or "N/D"
-
-    # Fallback via Dist%
-    dist = pd.to_numeric(df.get("Dist. (%) do Strike", pd.Series()), errors="coerce")
-    if dist.notna().any():
-        spot = (df["Strike"] / (1 + dist / 10_000)).median()
+    # ── Detecta escala ───────────────────────────────────────────────────────
+    if spot_real is not None and spot_real > 0:
+        raw_ratio = strike_median / spot_real
+        # Arredonda para potência de 10 mais próxima: 1, 10, 100, 1000
+        if   raw_ratio < 3:    scale = 1
+        elif raw_ratio < 30:   scale = 10
+        elif raw_ratio < 300:  scale = 100
+        else:                  scale = 1000
+        print(f"📐 Strike mediana={strike_median:.0f} | Spot={spot_real} | Escala detectada: {scale}x")
     else:
-        spot = strike_median
-    date = df["Data/Hora"].iloc[0] if "Data/Hora" in df.columns else "N/D"
-    print(f"✅ Spot (fallback): R$ {spot:.2f}")
-    return round(float(spot), 2), str(date)
+        # Fallback sem yfinance
+        spot_real = round(strike_median, 2)
+        scale = 1
+        print(f"⚠️  Usando mediana dos strikes como spot: {spot_real}")
 
-def calc_gex(df, spot):
+    spot_calc = round(spot_real * scale, 2)
+    return spot_real, spot_calc, scale, data_ref
+
+def calc_gex(df, spot_calc):
+    """GEX usando spot na mesma escala dos strikes."""
     df = df.copy()
     df["OI"]      = df["Tit."] + df["Lanç."]
     df["Gamma_d"] = df["Gamma"] / GAMMA_SCALE
     df["GEX"]     = df.apply(
-        lambda r: (1 if r["Tipo"] == "CALL" else -1) * r["Gamma_d"] * r["OI"] * spot, axis=1)
+        lambda r: (1 if r["Tipo"] == "CALL" else -1) * r["Gamma_d"] * r["OI"] * spot_calc, axis=1)
     gex_s = (df.groupby("Strike")["GEX"].sum()
                .reset_index().sort_values("Strike")
                .rename(columns={"GEX": "GEX_net"}))
@@ -128,28 +136,32 @@ def calc_kpis(df):
         "n_calls": int(len(calls)), "n_puts": int(len(puts)),
     }
 
-def fmt_strike(v):
-    """Formata strike no mesmo padrão dos dados (sem prefixo R$ para evitar confusão de escala)."""
-    return f"{v:,.0f}".replace(",", ".")
+def fmt_brl(v):
+    """Formata como R$ com vírgula decimal (padrão BR)."""
+    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
+def fmt_strike_display(v, scale):
+    """Converte strike da escala do xlsx para R$ real."""
+    return fmt_brl(v / scale)
+
+def gerar_html(spot_real, spot_calc, scale, data_ref, kpis, max_pain_raw, flip_raw, gex_s):
     skew_color = "#ef4444" if kpis["skew"] > 0 else "#22c55e"
     pc_color   = "#ef4444" if kpis["pc_ratio"] > 1 else "#22c55e"
 
-    spot_fmt     = fmt_strike(spot)
-    pain_fmt     = fmt_strike(max_pain)
-    flip_fmt     = fmt_strike(flip_strike) if flip_strike else "N/D"
+    # Converte tudo para R$ real na exibição
+    spot_fmt     = fmt_brl(spot_real)
+    pain_fmt     = fmt_strike_display(max_pain_raw, scale)
+    flip_fmt     = fmt_strike_display(flip_raw, scale) if flip_raw else "N/D"
 
-    # Diferença percentual (evita problema de escala)
-    pain_diff_pct = round((spot - max_pain) / max_pain * 100, 2)
-    pain_dir  = "Acima ↑" if spot >= max_pain else "Abaixo ↓"
-    pain_col  = "#22c55e" if spot >= max_pain else "#ef4444"
+    pain_diff_pct = round((spot_calc - max_pain_raw) / max_pain_raw * 100, 2)
+    pain_dir   = "Acima ↑" if spot_calc >= max_pain_raw else "Abaixo ↓"
+    pain_col   = "#22c55e" if spot_calc >= max_pain_raw else "#ef4444"
 
     flip_level_html = ""
-    if flip_strike:
-        flip_diff_pct = round((spot - flip_strike) / flip_strike * 100, 2)
-        flip_dir  = "Acima ↑" if spot >= flip_strike else "Abaixo ↓"
-        flip_col  = "#22c55e" if spot >= flip_strike else "#ef4444"
+    if flip_raw:
+        flip_diff_pct = round((spot_calc - flip_raw) / flip_raw * 100, 2)
+        flip_dir  = "Acima ↑" if spot_calc >= flip_raw else "Abaixo ↓"
+        flip_col  = "#22c55e" if spot_calc >= flip_raw else "#ef4444"
         flip_level_html = f"""
     <div class="sep"></div>
     <div class="li"><span class="lbl">GEX Flip</span><span class="val" style="color:var(--accent)">{flip_fmt}</span></div>
@@ -157,24 +169,22 @@ def gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s):
     <div class="li"><span class="lbl">Spot vs GEX Flip</span><span class="val" style="color:{flip_col}">{flip_dir} ({abs(flip_diff_pct):.2f}%)</span></div>"""
 
     # ── Gráfico 1: Top 20 por |GEX| ────────────────────────────────────────
-    top20 = gex_s.loc[gex_s["GEX_net"].abs().nlargest(20).index].sort_values("GEX_net")
-    t_labels = [fmt_strike(v) for v in top20["Strike"].tolist()]
+    top20  = gex_s.loc[gex_s["GEX_net"].abs().nlargest(20).index].sort_values("GEX_net")
+    t_labels = [fmt_strike_display(v, scale) for v in top20["Strike"].tolist()]
     t_values = [round(v,2) for v in top20["GEX_net"].tolist()]
     t_colors = ["'#22c55e'" if v>=0 else "'#ef4444'" for v in t_values]
 
-    # ── Gráfico 2: ±8% da MEDIANA dos strikes (zona relevante) ─────────────
-    ref = float(gex_s["Strike"].median())
-    near = gex_s[(gex_s["Strike"] >= ref*0.92) & (gex_s["Strike"] <= ref*1.08)]
-    # se ficar vazio, abre para ±15%
+    # ── Gráfico 2: zona central ±8% do spot_calc ───────────────────────────
+    near = gex_s[(gex_s["Strike"] >= spot_calc*0.92) & (gex_s["Strike"] <= spot_calc*1.08)]
     if near.empty:
-        near = gex_s[(gex_s["Strike"] >= ref*0.85) & (gex_s["Strike"] <= ref*1.15)]
+        near = gex_s[(gex_s["Strike"] >= spot_calc*0.85) & (gex_s["Strike"] <= spot_calc*1.15)]
     near = near.loc[near["GEX_net"].abs().nlargest(25).index].sort_values("GEX_net")
-    n_labels = [fmt_strike(v) for v in near["Strike"].tolist()]
+    n_labels = [fmt_strike_display(v, scale) for v in near["Strike"].tolist()]
     n_values = [round(v,2) for v in near["GEX_net"].tolist()]
     n_colors = ["'#22c55e'" if v>=0 else "'#ef4444'" for v in n_values]
 
-    h1 = max(320, len(t_labels)*22)
-    h2 = max(320, len(n_labels)*22)
+    h1  = max(320, len(t_labels)*22)
+    h2  = max(320, len(n_labels)*22)
     now = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     html = f"""<!DOCTYPE html>
@@ -224,7 +234,7 @@ body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pa
     <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; {data_ref} &nbsp;|&nbsp; {now}</p>
   </div>
   <div class="spot-badge">
-    <div class="lbl">Spot Ref.</div>
+    <div class="lbl">BOVA11 Fechamento</div>
     <div class="val">{spot_fmt}</div>
   </div>
 </div>
@@ -241,7 +251,7 @@ body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pa
 <div class="levels">
   <h3>Níveis-Chave</h3>
   <div class="levels-row">
-    <div class="li"><span class="lbl">Spot Ref.</span><span class="val" style="color:var(--blue)">{spot_fmt}</span></div>
+    <div class="li"><span class="lbl">Fechamento</span><span class="val" style="color:var(--blue)">{spot_fmt}</span></div>
     <div class="sep"></div>
     <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">{pain_fmt}</span></div>
     <div class="sep"></div>
@@ -256,7 +266,7 @@ body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pa
     <div class="chart-wrap" style="height:{h1}px"><canvas id="cTop"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>GEX<span>Zona central (±8% da mediana)</span></h3>
+    <h3>GEX<span>Zona ±8% do Spot</span></h3>
     <div class="chart-wrap" style="height:{h2}px"><canvas id="cNear"></canvas></div>
   </div>
 </div>
@@ -266,26 +276,20 @@ body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pa
 <script>
 const opts = {{
   indexAxis:'y', responsive:true, maintainAspectRatio:false,
-  plugins:{{ legend:{{display:false}}, tooltip:{{ callbacks:{{ label: c=>' '+c.raw.toLocaleString('pt-BR',{{maximumFractionDigits:0}}) }} }} }},
+  plugins:{{ legend:{{display:false}}, tooltip:{{ callbacks:{{ label: c=>' GEX: '+c.raw.toLocaleString('pt-BR',{{maximumFractionDigits:0}}) }} }} }},
   scales:{{
     x:{{ ticks:{{color:'#6b7280',font:{{size:10}}}}, grid:{{color:'#1f2937'}}, border:{{color:'#374151'}} }},
-    y:{{ ticks:{{color:'#9ca3af',font:{{size:11,family:"'Space Mono',monospace"}}}}, grid:{{display:false}}, border:{{color:'#374151'}} }}
+    y:{{ ticks:{{color:'#9ca3af',font:{{size:10,family:"'Space Mono',monospace"}}}}, grid:{{display:false}}, border:{{color:'#374151'}} }}
   }}
 }};
 new Chart(document.getElementById('cTop'),{{
   type:'bar',
-  data:{{
-    labels:{json.dumps(t_labels)},
-    datasets:[{{data:{json.dumps(t_values)},backgroundColor:[{','.join(t_colors)}],borderRadius:4,borderSkipped:false,barThickness:16}}]
-  }},
+  data:{{labels:{json.dumps(t_labels)},datasets:[{{data:{json.dumps(t_values)},backgroundColor:[{','.join(t_colors)}],borderRadius:4,borderSkipped:false,barThickness:16}}]}},
   options:JSON.parse(JSON.stringify(opts))
 }});
 new Chart(document.getElementById('cNear'),{{
   type:'bar',
-  data:{{
-    labels:{json.dumps(n_labels)},
-    datasets:[{{data:{json.dumps(n_values)},backgroundColor:[{','.join(n_colors)}],borderRadius:4,borderSkipped:false,barThickness:16}}]
-  }},
+  data:{{labels:{json.dumps(n_labels)},datasets:[{{data:{json.dumps(n_values)},backgroundColor:[{','.join(n_colors)}],borderRadius:4,borderSkipped:false,barThickness:16}}]}},
   options:JSON.parse(JSON.stringify(opts))
 }});
 </script>
@@ -297,15 +301,18 @@ def main():
     path = find_latest_xlsx()
     print(f"📂 Lendo: {path}")
     df = load_data(path)
-    spot, data_ref = get_spot_price(df)
+    spot_real, spot_calc, scale, data_ref = get_spot_and_scale(df)
     kpis      = calc_kpis(df)
     max_pain  = calc_max_pain(df)
-    gex_s, flip_strike = calc_gex(df, spot)
+    gex_s, flip_strike = calc_gex(df, spot_calc)
+
     print(f"📊 {len(df)} opções | CALLs:{kpis['n_calls']} PUTs:{kpis['n_puts']}")
-    print(f"📈 IV CALL:{kpis['iv_call']}% IV PUT:{kpis['iv_put']}% Skew:{kpis['skew']}%")
-    print(f"⚖️  P/C:{kpis['pc_ratio']} | 🎯 MaxPain:{max_pain:,.0f} | 🔄 Flip:{flip_strike or 'N/D'}")
+    print(f"📈 IV:{kpis['iv_call']}%/{kpis['iv_put']}% Skew:{kpis['skew']}% P/C:{kpis['pc_ratio']}")
+    print(f"🎯 MaxPain: {max_pain:,.0f} (R$ {max_pain/scale:,.2f})")
+    print(f"🔄 GEXFlip: {flip_strike or 'N/D'}")
+
     os.makedirs("output", exist_ok=True)
-    html = gerar_html(spot, data_ref, kpis, max_pain, flip_strike, gex_s)
+    html = gerar_html(spot_real, spot_calc, scale, data_ref, kpis, max_pain, flip_strike, gex_s)
     with open("output/index.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("✅ output/index.html gerado!")
