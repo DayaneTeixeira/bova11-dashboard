@@ -125,8 +125,10 @@ def calc_kpis(df):
     def ss(s): return float(s.replace([np.inf, -np.inf], np.nan).fillna(0).sum())
     vc  = ss(calls["Vol. Financeiro"]); vp = ss(puts["Vol. Financeiro"])
     nc  = ss(calls["Núm. de Neg."]);   np_ = ss(puts["Núm. de Neg."])
-    iv_c = float(calls["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0)
-    iv_p = float(puts["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0)
+    # CORREÇÃO: Vol. Impl. (%) vem em escala inteira no xlsx do opcoes.net.br
+    # ex: 169 = 16,9% → dividir por 10 para obter o valor real
+    iv_c = float(calls["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0) / 10
+    iv_p = float(puts["Vol. Impl. (%)"].replace([np.inf,-np.inf],np.nan).mean() or 0) / 10
     return {
         "iv_call": round(iv_c,1), "iv_put": round(iv_p,1),
         "skew": round(iv_p - iv_c,1),
