@@ -3,172 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BOVA11 Dashboard · GEX & Opções</title>
+<title>BOVA11 Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:      #0a0e1a;
-    --surface: #111827;
-    --border:  #1f2937;
-    --text:    #e5e7eb;
-    --muted:   #6b7280;
-    --green:   #22c55e;
-    --red:     #ef4444;
-    --blue:    #3b82f6;
-    --yellow:  #f59e0b;
-    --accent:  #818cf8;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    padding: 24px 20px 60px;
-  }
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .header-left h1 {
-    font-family: 'Space Mono', monospace;
-    font-size: clamp(1.3rem, 3.5vw, 1.9rem);
-    font-weight: 700;
-    color: #fff;
-  }
-  .header-left h1 span { color: var(--accent); }
-  .header-left p { font-size: .78rem; color: var(--muted); margin-top: 5px; font-family: 'Space Mono', monospace; }
-  .spot-badge {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 20px;
-    text-align: right;
-  }
-  .spot-badge .label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
-  .spot-badge .value { font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--green); }
+:root {
+  --bg:#0a0e1a; --surface:#111827; --border:#1f2937;
+  --text:#e5e7eb; --muted:#6b7280;
+  --green:#22c55e; --red:#ef4444; --blue:#3b82f6;
+  --yellow:#f59e0b; --accent:#818cf8;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; padding:20px 18px 60px; }
 
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-  .kpi-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 16px;
-  }
-  .kpi-label { font-size: .66rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 7px; }
-  .kpi-value { font-family: 'Space Mono', monospace; font-size: 1.25rem; font-weight: 700; }
-  .kpi-sub { font-size: .7rem; color: var(--muted); margin-top: 4px; }
+.header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:24px; padding-bottom:18px; border-bottom:1px solid var(--border); }
+.header h1{ font-family:'Space Mono',monospace; font-size:clamp(1.2rem,3.5vw,1.8rem); color:#fff; }
+.header h1 span{ color:var(--accent); }
+.header p{ font-size:.75rem; color:var(--muted); margin-top:4px; font-family:'Space Mono',monospace; }
+.spot-badge{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 18px; text-align:right; }
+.spot-badge .lbl{ font-size:.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+.spot-badge .val{ font-family:'Space Mono',monospace; font-size:1.4rem; font-weight:700; color:var(--green); }
 
-  .levels-bar {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px 20px;
-    margin-bottom: 24px;
-  }
-  .levels-bar h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; }
-  .levels-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
-  .level-item { display: flex; flex-direction: column; gap: 4px; }
-  .lbl { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-  .val { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; }
-  .sep { width: 1px; height: 38px; background: var(--border); }
+.kpi-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; margin-bottom:18px; }
+.kpi{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+.kpi .k-lbl{ font-size:.63rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
+.kpi .k-val{ font-family:'Space Mono',monospace; font-size:1.2rem; font-weight:700; }
+.kpi .k-sub{ font-size:.68rem; color:var(--muted); margin-top:3px; }
 
-  .charts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 24px;
-  }
-  @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
-  .chart-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  .chart-card h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 12px; }
-  .chart-card h3 span { font-family: 'Space Mono', monospace; font-size: .85rem; color: var(--text); text-transform: none; letter-spacing: 0; margin-left: 6px; }
-  /* altura fixa pro canvas */
-  .chart-wrap { position: relative; height: 300px; }
+.levels{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+.levels h3{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:12px; }
+.levels-row{ display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+.li{ display:flex; flex-direction:column; gap:3px; }
+.li .lbl{ font-size:.63rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+.li .val{ font-family:'Space Mono',monospace; font-size:.95rem; font-weight:700; }
+.sep{ width:1px; height:36px; background:var(--border); }
 
-  .footer { text-align: center; font-size: .7rem; color: var(--muted); margin-top: 32px; font-family: 'Space Mono', monospace; }
+.charts-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:640px){ .charts-grid{ grid-template-columns:1fr; } }
+.chart-card{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.chart-card h3{ font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:10px; }
+.chart-card h3 span{ font-family:'Space Mono',monospace; font-size:.82rem; color:var(--text); text-transform:none; letter-spacing:0; margin-left:5px; }
+.chart-wrap{ position:relative; }
+
+.footer{ text-align:center; font-size:.67rem; color:var(--muted); margin-top:28px; font-family:'Space Mono',monospace; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-left">
+  <div>
     <h1>BOVA11 <span>Dashboard</span></h1>
-    <p>GEX · Max Pain · Skew &nbsp;|&nbsp; Ref: 22/05/2026 &nbsp;|&nbsp; Gerado: 24/05/2026 19:15</p>
+    <p>GEX · Max Pain · Skew · Put/Call &nbsp;|&nbsp; 22/05/2026 &nbsp;|&nbsp; 24/05/2026 19:20</p>
   </div>
   <div class="spot-badge">
-    <div class="label">BOVA11 Spot</div>
-    <div class="value">R$ 173,30</div>
+    <div class="lbl">Spot</div>
+    <div class="val">R$ 173,30</div>
   </div>
 </div>
 
 <div class="kpi-grid">
-  <div class="kpi-card">
-    <div class="kpi-label">IV Call (média)</div>
-    <div class="kpi-value" style="color:var(--green)">228.5%</div>
-    <div class="kpi-sub">43 contratos</div>
+  <div class="kpi">
+    <div class="k-lbl">IV Call</div>
+    <div class="k-val" style="color:var(--green)">228.5%</div>
+    <div class="k-sub">43 contratos</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">IV Put (média)</div>
-    <div class="kpi-value" style="color:var(--red)">194.3%</div>
-    <div class="kpi-sub">43 contratos</div>
+  <div class="kpi">
+    <div class="k-lbl">IV Put</div>
+    <div class="k-val" style="color:var(--red)">194.3%</div>
+    <div class="k-sub">43 contratos</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Skew (Put − Call)</div>
-    <div class="kpi-value" style="color:#22c55e">-34.3%</div>
-    <div class="kpi-sub">Bullish bias</div>
+  <div class="kpi">
+    <div class="k-lbl">Skew Put−Call</div>
+    <div class="k-val" style="color:#22c55e">-34.3%</div>
+    <div class="k-sub">Bullish bias</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Put/Call Ratio</div>
-    <div class="kpi-value" style="color:#ef4444">1.615</div>
-    <div class="kpi-sub">Vol. financeiro</div>
+  <div class="kpi">
+    <div class="k-lbl">Put/Call Ratio</div>
+    <div class="k-val" style="color:#ef4444">1.615</div>
+    <div class="k-sub">por vol. financeiro</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Vol. Calls</div>
-    <div class="kpi-value" style="color:var(--green)">R$ 8.9M</div>
-    <div class="kpi-sub">8,164 negócios</div>
+  <div class="kpi">
+    <div class="k-lbl">Vol. Calls</div>
+    <div class="k-val" style="color:var(--green)">R$ 8.9M</div>
+    <div class="k-sub">8,164 negócios</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Vol. Puts</div>
-    <div class="kpi-value" style="color:var(--red)">R$ 14.4M</div>
-    <div class="kpi-sub">6,626 negócios</div>
+  <div class="kpi">
+    <div class="k-lbl">Vol. Puts</div>
+    <div class="k-val" style="color:var(--red)">R$ 14.4M</div>
+    <div class="k-sub">6,626 negócios</div>
   </div>
 </div>
 
-<div class="levels-bar">
+<div class="levels">
   <h3>Níveis-Chave</h3>
   <div class="levels-row">
-    <div class="level-item">
-      <span class="lbl">Spot</span>
-      <span class="val" style="color:var(--blue)">R$ 173,30</span>
-    </div>
+    <div class="li"><span class="lbl">Spot</span><span class="val" style="color:var(--blue)">R$ 173,30</span></div>
     <div class="sep"></div>
-    <div class="level-item">
-      <span class="lbl">Max Pain</span>
-      <span class="val" style="color:var(--yellow)">R$ 17.600</span>
-    </div>
+    <div class="li"><span class="lbl">Max Pain</span><span class="val" style="color:var(--yellow)">R$ 17.600</span></div>
     <div class="sep"></div>
-    <div class="level-item">
-      <span class="lbl">Spot vs Max Pain</span>
-      <span class="val" style="color:#ef4444">Abaixo ↓ (17426.7 pts)</span>
-    </div>
+    <div class="li"><span class="lbl">Spot vs Max Pain</span><span class="val" style="color:#ef4444">Abaixo ↓ (17426.7 pts)</span></div>
     
     <div class="sep"></div>
     <div class="level-item">
@@ -185,12 +118,16 @@
 
 <div class="charts-grid">
   <div class="chart-card">
-    <h3>GEX por Strike <span>±12% do Spot</span></h3>
-    <div class="chart-wrap"><canvas id="gexNear"></canvas></div>
+    <h3>GEX<span>Top 20 strikes por magnitude</span></h3>
+    <div class="chart-wrap" style="height:440px">
+      <canvas id="cTop"></canvas>
+    </div>
   </div>
   <div class="chart-card">
-    <h3>GEX por Strike <span>Top 15 magnitude</span></h3>
-    <div class="chart-wrap"><canvas id="gexTop"></canvas></div>
+    <h3>GEX<span>±8% do Spot (zona relevante)</span></h3>
+    <div class="chart-wrap" style="height:300px">
+      <canvas id="cNear"></canvas>
+    </div>
   </div>
 </div>
 
@@ -199,56 +136,60 @@
 </div>
 
 <script>
-const baseOpts = {
+const hBarOpts = {
+  indexAxis: 'y',
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: ctx => ' GEX: ' + ctx.raw.toLocaleString('pt-BR', {maximumFractionDigits: 0})
+        label: ctx => ' ' + ctx.raw.toLocaleString('pt-BR', {maximumFractionDigits: 0})
       }
     }
   },
   scales: {
     x: {
-      ticks: { color: '#6b7280', font: { size: 10 }, maxRotation: 45, minRotation: 30 },
-      grid:  { color: '#1f2937' }
+      ticks: { color: '#6b7280', font: { size: 10 } },
+      grid: { color: '#1f2937' },
+      border: { color: '#374151' }
     },
     y: {
-      ticks: { color: '#6b7280', font: { size: 10 } },
-      grid:  { color: '#1f2937' },
-      beginAtZero: false
+      ticks: { color: '#9ca3af', font: { size: 11, family: "'Space Mono', monospace" } },
+      grid: { display: false },
+      border: { color: '#374151' }
     }
   }
 };
 
-new Chart(document.getElementById('gexNear'), {
+new Chart(document.getElementById('cTop'), {
+  type: 'bar',
+  data: {
+    labels: ["17000", "16900", "17100", "16800", "17200", "16500", "16700", "16600", "18500", "16400", "16100", "16300", "18200", "18100", "17900", "17500", "18000", "17800", "17700", "17600"],
+    datasets: [{
+      data: [-1131.41, -777.91, -631.99, -563.16, -422.47, -374.47, -359.22, -300.64, -202.8, -155.1, -153.01, -124.74, 167.46, 273.61, 727.18, 947.36, 986.27, 1039.07, 1103.68, 1118.53],
+      backgroundColor: ['#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e'],
+      borderRadius: 4,
+      borderSkipped: false,
+      barThickness: 16,
+    }]
+  },
+  options: JSON.parse(JSON.stringify(hBarOpts))
+});
+
+new Chart(document.getElementById('cNear'), {
   type: 'bar',
   data: {
     labels: [],
     datasets: [{
       data: [],
       backgroundColor: [],
-      borderRadius: 3,
+      borderRadius: 4,
       borderSkipped: false,
+      barThickness: 16,
     }]
   },
-  options: JSON.parse(JSON.stringify(baseOpts))
-});
-
-new Chart(document.getElementById('gexTop'), {
-  type: 'bar',
-  data: {
-    labels: [16500, 16600, 16700, 16800, 16900, 17000, 17100, 17200, 17500, 17600, 17700, 17800, 17900, 18000, 18100],
-    datasets: [{
-      data: [-374.47, -300.64, -359.22, -563.16, -777.91, -1131.41, -631.99, -422.47, 947.36, 1118.53, 1103.68, 1039.07, 727.18, 986.27, 273.61],
-      backgroundColor: ['#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#ef4444', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e', '#22c55e'],
-      borderRadius: 3,
-      borderSkipped: false,
-    }]
-  },
-  options: JSON.parse(JSON.stringify(baseOpts))
+  options: JSON.parse(JSON.stringify(hBarOpts))
 });
 </script>
 </body>
